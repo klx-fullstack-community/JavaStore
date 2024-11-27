@@ -2,10 +2,10 @@ spring:
     application:
         name: workshop
     datasource:
-        url: jdbc:mysql://localhost:3306/workshop_db
+        url: jdbc:mysql://localhost:3306/store_db
         driver-class-name: com.mysql.cj.jdbc.Driver
-        username: jakarta
-        password: jakarta
+        username: admin
+        password: admin
     jpa:
         hibernate:
             ddl-auto: update
