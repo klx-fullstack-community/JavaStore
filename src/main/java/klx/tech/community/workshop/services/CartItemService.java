@@ -2,22 +2,15 @@ package klx.tech.community.workshop.services;
 
 import java.util.List;
 
-import klx.tech.community.workshop.dto.CartItemDTO;
-import klx.tech.community.workshop.dto.CartItemRequestDTO;
 import klx.tech.community.workshop.dto.ProductCartItemDTO;
-import klx.tech.community.workshop.entities.CartItem;
+import klx.tech.community.workshop.dto.ProductDTO;
 
 public interface CartItemService {
 
-    ProductCartItemDTO findById(Long id);
-
     List<ProductCartItemDTO> findAll();
 
-    CartItem create(CartItemRequestDTO request);
+    List<ProductCartItemDTO> addProductToCartItem(ProductDTO productDTO);
 
-    CartItem update(Long id, CartItemRequestDTO request);
+    List<ProductCartItemDTO> deleteProductFromCartItem(Long productId);
 
-    void delete(Long id);
-
-    CartItemDTO toCartItemDTO(CartItem cartItem);
 }

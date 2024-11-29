@@ -1,7 +1,5 @@
 package klx.tech.community.workshop.services;
 
-import klx.tech.community.workshop.dto.CartItemDTO;
-import klx.tech.community.workshop.dto.CartItemRequestDTO;
 import klx.tech.community.workshop.dto.ProductCartItemDTO;
 import klx.tech.community.workshop.dto.ProductDTO;
 import klx.tech.community.workshop.entities.CartItem;
@@ -12,8 +10,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,103 +26,89 @@ public class CartItemServiceImpl implements CartItemService {
 
     @Override
     @Transactional
-    public CartItem create(CartItemRequestDTO request) {
-        if (request.getProducts() == null || request.getProducts().isEmpty()) {
-            throw new IllegalArgumentException("Invalid input: No products provided.");
+    public List<ProductCartItemDTO> addProductToCartItem(ProductDTO productDTO) {
+        // Constant ID for the CartItem (always working with cart_item ID = 1)
+        final Long cartItemId = 1L;
+
+        // Find the CartItem with ID = 1
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new RuntimeException("CartItem not found with id: " + cartItemId));
+
+        // Check if the product exists in the products table
+        Optional<Product> optionalProduct = productService.findById(productDTO.getId());
+        if (optionalProduct.isEmpty()) {
+            // If the product does not exist, return the current list without making changes
+            return cartItem.getCartItemProducts().stream()
+                    .map(cartItemProduct -> toProductCartItemDTO(cartItemProduct.getProduct(), cartItemProduct.getQuantity()))
+                    .collect(Collectors.toList());
         }
 
-        CartItem cartItem = new CartItem();
-        Set<CartItemProduct> cartItemProducts = request.getProducts().entrySet().stream().map(entry -> {
-            Long productId = entry.getKey();
-            Integer quantity = entry.getValue();
+        Product product = optionalProduct.get();
 
-            Product product = productService.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Product not found for productId: " + productId));
+        // Find if the product already exists in the CartItem
+        CartItemProduct existingCartItemProduct = cartItem.getCartItemProducts().stream()
+                .filter(cartItemProduct -> cartItemProduct.getProduct().getId().equals(productDTO.getId()))
+                .findFirst()
+                .orElse(null);
 
-            CartItemProduct cartItemProduct = new CartItemProduct();
-            cartItemProduct.setProduct(product);
-            cartItemProduct.setQuantity(quantity);
-            cartItemProduct.setCartItem(cartItem);
-            return cartItemProduct;
-        }).collect(Collectors.toSet());
-
-        cartItem.setCartItemProducts(cartItemProducts);
-        return cartItemRepository.save(cartItem);
-    }
-
-    @Override
-    @Transactional
-    public CartItem update(Long id, CartItemRequestDTO request) {
-        // Fetch the CartItem from the database
-        CartItem cartItem = cartItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("CartItem not found with id: " + id));
-
-        // Process the "products" map from the request
-        Map<Long, Integer> updatedProducts = request.getProducts();
-
-        // Check if the "products" map is empty or will result in no products remaining
-        if (updatedProducts == null || updatedProducts.isEmpty()) {
-            cartItem.getCartItemProducts().clear(); // Clear all products if the map is empty
-            return cartItemRepository.save(cartItem);
+        if (existingCartItemProduct != null) {
+            // If the product exists, increment its quantity
+            existingCartItemProduct.setQuantity(existingCartItemProduct.getQuantity() + 1);
+        } else {
+            // If the product does not exist in the CartItem, add it with quantity = 1
+            CartItemProduct newCartItemProduct = new CartItemProduct();
+            newCartItemProduct.setCartItem(cartItem);
+            newCartItemProduct.setProduct(product);
+            newCartItemProduct.setQuantity(1);
+            cartItem.getCartItemProducts().add(newCartItemProduct);
         }
 
-        // Remove products not present in the request or with invalid quantities
-        cartItem.getCartItemProducts().removeIf(cartItemProduct -> {
-            Long productId = cartItemProduct.getProduct().getId();
-            return !updatedProducts.containsKey(productId) || updatedProducts.get(productId) <= 0;
-        });
+        // Save the updated CartItem
+        cartItemRepository.save(cartItem);
 
-        // Update quantities for existing products in the CartItem
-        cartItem.getCartItemProducts().forEach(cartItemProduct -> {
-            Long productId = cartItemProduct.getProduct().getId();
-            if (updatedProducts.containsKey(productId)) {
-                cartItemProduct.setQuantity(updatedProducts.get(productId));
-            }
-        });
-
-        // Add new products from the request that are not already in the CartItem
-        updatedProducts.forEach((productId, quantity) -> {
-            boolean exists = cartItem.getCartItemProducts().stream()
-                    .anyMatch(cartItemProduct -> cartItemProduct.getProduct().getId().equals(productId));
-            if (!exists && quantity > 0) {
-                Product product = productService.findById(productId)
-                        .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
-                CartItemProduct newCartItemProduct = new CartItemProduct();
-                newCartItemProduct.setCartItem(cartItem);
-                newCartItemProduct.setProduct(product);
-                newCartItemProduct.setQuantity(quantity);
-                cartItem.getCartItemProducts().add(newCartItemProduct);
-            }
-        });
-
-        return cartItemRepository.save(cartItem);
+        // Return the updated list of ProductCartItemDTO
+        return cartItem.getCartItemProducts().stream()
+                .map(cartItemProduct -> toProductCartItemDTO(cartItemProduct.getProduct(), cartItemProduct.getQuantity()))
+                .collect(Collectors.toList());
     }
 
 
     @Override
     @Transactional
-    public void delete(Long id) {
-        if (!cartItemRepository.existsById(id)) {
-            throw new RuntimeException("CartItem not found with id: " + id);
+    public List<ProductCartItemDTO> deleteProductFromCartItem(Long productId) {
+        // Constant ID for the CartItem (always working with cart_item ID = 1)
+        final Long cartItemId = 1L;
+
+        // Fetch the CartItem with ID = 1
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new RuntimeException("CartItem not found with id: " + cartItemId));
+
+        // Find the product in the cart_item_product table
+        CartItemProduct existingCartItemProduct = cartItem.getCartItemProducts().stream()
+                .filter(cartItemProduct -> cartItemProduct.getProduct().getId().equals(productId))
+                .findFirst()
+                .orElse(null);
+
+        if (existingCartItemProduct != null) {
+            if (existingCartItemProduct.getQuantity() > 1) {
+                // Decrease quantity by 1
+                existingCartItemProduct.setQuantity(existingCartItemProduct.getQuantity() - 1);
+            } else {
+                // Remove the product from the CartItem if quantity becomes 0
+                cartItem.getCartItemProducts().remove(existingCartItemProduct);
+            }
         }
-        cartItemRepository.deleteById(id);
+
+        // Save the updated CartItem
+        cartItemRepository.save(cartItem);
+
+        // Return the updated list of ProductCartItemDTO
+        return cartItem.getCartItemProducts().stream()
+                .map(cartItemProduct -> toProductCartItemDTO(cartItemProduct.getProduct(), cartItemProduct.getQuantity()))
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public ProductCartItemDTO findById(Long id) {
-        CartItem cartItem = cartItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("CartItem not found with id: " + id));
 
-        if (cartItem.getCartItemProducts().isEmpty()) {
-            throw new RuntimeException("CartItem has no associated products.");
-        }
-
-        CartItemProduct cartItemProduct = cartItem.getCartItemProducts().iterator().next();
-        Product product = cartItemProduct.getProduct();
-        Integer quantity = cartItemProduct.getQuantity();
-
-        return toProductCartItemDTO(product, quantity);
-    }
 
     @Override
     public List<ProductCartItemDTO> findAll() {
@@ -151,16 +134,4 @@ public class CartItemServiceImpl implements CartItemService {
                 .build();
     }
 
-    @Override
-    public CartItemDTO toCartItemDTO(CartItem cartItem) {
-        return CartItemDTO.builder()
-                .id(cartItem.getId())
-                .products(cartItem.getCartItemProducts().stream()
-                        .map(cartItemProduct -> ProductCartItemDTO.builder()
-                                .product(productService.toProductDTO(cartItemProduct.getProduct()))
-                                .quantity(cartItemProduct.getQuantity())
-                                .build())
-                        .collect(Collectors.toList()))
-                .build();
-    }
 }
