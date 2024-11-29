@@ -1,8 +1,7 @@
 package klx.tech.community.workshop.controllers;
 
-import klx.tech.community.workshop.dto.CartItemDTO;
-import klx.tech.community.workshop.dto.CartItemRequestDTO;
 import klx.tech.community.workshop.dto.ProductCartItemDTO;
+import klx.tech.community.workshop.dto.ProductDTO;
 import klx.tech.community.workshop.services.CartItemService;
 
 import java.util.List;
@@ -21,49 +20,29 @@ public class CartItemController {
         this.cartItemService = cartItemService;
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProductCartItemDTO> findById(@PathVariable Long id) {
-        try {
-            ProductCartItemDTO productCartItemDTO = cartItemService.findById(id);
-            return ResponseEntity.ok(productCartItemDTO);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
     @GetMapping
-    public List<ProductCartItemDTO> findAll() {
+    public List<ProductCartItemDTO> showProductsInCartItem() {
         return cartItemService.findAll();
     }
 
     @PostMapping
-    public ResponseEntity<CartItemDTO> create(@RequestBody CartItemRequestDTO request) {
+    public ResponseEntity<List<ProductCartItemDTO>> addProductToCartItem(@RequestBody ProductDTO productDTO) {
         try {
-            CartItemDTO cartItemDTO = cartItemService.toCartItemDTO(cartItemService.create(request));
-            return ResponseEntity.ok(cartItemDTO);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(null);
-        }
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<CartItemDTO> update(@PathVariable Long id, @RequestBody CartItemRequestDTO request) {
-        try {
-            CartItemDTO updatedCartItemDTO = cartItemService.toCartItemDTO(cartItemService.update(id, request));
-            return ResponseEntity.ok(updatedCartItemDTO);
+            List<ProductCartItemDTO> updatedCartItems = cartItemService.addProductToCartItem(productDTO);
+            return ResponseEntity.ok(updatedCartItems);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(null);
         }
     }
 
-    
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<List<ProductCartItemDTO>> deleteProductFromCartItem(@PathVariable Long id) {
         try {
-            cartItemService.delete(id);
-            return ResponseEntity.noContent().build();
+            // Call the service method to delete the product and get the updated list
+            List<ProductCartItemDTO> updatedCartItems = cartItemService.deleteProductFromCartItem(id);
+            return ResponseEntity.ok(updatedCartItems);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
     
