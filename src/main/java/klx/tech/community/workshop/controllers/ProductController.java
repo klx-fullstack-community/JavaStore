@@ -1,6 +1,7 @@
 package klx.tech.community.workshop.controllers;
 
 import klx.tech.community.workshop.dto.ProductDTO;
+import klx.tech.community.workshop.request.ProductRequest;
 import klx.tech.community.workshop.services.ProductService;
 
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,11 @@ public class ProductController {
         return productService.findByIdDTO(id)
                 .map(ResponseEntity::ok) // Devuelve el ProductDTO en la respuesta
                 .orElseGet(() -> ResponseEntity.notFound().build()); // 404 si no existe
+    }
+
+    @PostMapping
+    public ResponseEntity<ProductDTO> save(@RequestBody ProductRequest productRequest){
+        return ResponseEntity.ok(productService.save(productRequest));
     }
 
 }
