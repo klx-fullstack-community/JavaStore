@@ -16,15 +16,14 @@ import java.util.Map;
 public class ChatGptServiceImpl implements ChatGptService {
 
     private final WebClient webClient;
-
-    @Value("${chatgpt.api.key}")
-    private String apiKey;
+    private final String chatGptKey;
 
     @Value("${chatgpt.api.url}")
     private String apiUrl;
 
-    public ChatGptServiceImpl(WebClient.Builder webClientBuilder) {
+    public ChatGptServiceImpl(WebClient.Builder webClientBuilder, String chatGptKey) {
         this.webClient = webClientBuilder.build();
+        this.chatGptKey = chatGptKey;
     }
 
     @Override
@@ -33,10 +32,10 @@ public class ChatGptServiceImpl implements ChatGptService {
 
         return this.webClient.post()
                 .uri(apiUrl)
-                .header("Authorization", "Bearer " + apiKey)
+                .header("Authorization", "Bearer " + chatGptKey)
                 .header("Content-Type", "application/json")
                 .bodyValue(Map.of(
-                        "model", "gpt-3.5-turb", // Use "gpt-4" para maior qualidade
+                        "model", "gpt-3.5-turbo", // Use "gpt-4" para maior qualidade
                         "messages", List.of(
                                 Map.of("role", "system", "content", "Você é um especialista em recomendações de produtos."),
                                 Map.of("role", "user", "content", prompt)
